@@ -98,6 +98,20 @@ int main() {
              * Both are in between [-1, 1].
              *
              */
+
+            for(int  i=0; i<ptsx.size(); ++i){
+                double dtx = ptsx[i] - px;
+                double dty = ptsy[i] - py;
+
+                ptsx[i] = dtx * cos(psi) + dty * sin(psi);
+                ptsy[i] = dty * cos(psi) - dtx * sin(psi);
+
+            }
+            Eigen::Map<Eigen::VectorXd> X(ptsx.data(),ptsx.size());
+            Eigen::Map<Eigen::VectorXd> Y(ptsy.data(),ptsy.size());
+            Eigen::VectorXd coeffs = polyfit(X,Y,3);
+            double cte = polyeval(coeffs,0);
+            double epsi = -atan(coeffs[1]);
             double steer_value;
             double throttle_value;
 
@@ -106,6 +120,8 @@ int main() {
             // Otherwise the values will be in between [-deg2rad(25), deg2rad(25] instead of [-1, 1].
             msgJson["steering_angle"] = steer_value;
             msgJson["throttle"] = throttle_value;
+            msgJson["cte"] = cte;
+            msgJson["epsi"] = epsi;
 
             //Display the MPC predicted trajectory 
             vector<double> mpc_x_vals;
@@ -118,14 +134,6 @@ int main() {
             msgJson["mpc_y"] = mpc_y_vals;
 
             //Display the waypoints/reference line
-            for(int  i=0; i<ptsx.size(); ++i){
-                double dtx = ptsx[i] - px;
-                double dty = ptsy[i] - py;
-
-                ptsx[i] = dtx * cos(psi) + dty * sin(psi);
-                ptsy[i] = dty * cos(psi) - dtx * sin(psi);
-
-            }
             vector<double> next_x_vals = ptsx;
             vector<double> next_y_vals = ptsy;
 

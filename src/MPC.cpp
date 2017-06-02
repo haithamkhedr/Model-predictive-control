@@ -7,7 +7,7 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N =10;
+size_t N =20;
 double dt = 0.05;
 
 static int x_start = 0;
@@ -30,7 +30,7 @@ static int a_start = delta_start + N -1 ;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
-static const double v_ref = 35;
+static const double v_ref = 65;
 
 AD<double> polyeval(Eigen::VectorXd coeffs, AD<double> x) {
     AD<double> result = 0.0;
@@ -55,20 +55,20 @@ class FG_eval {
             fg[0] = 0;
 
             for(int i = 0; i < N; ++i){
-                fg[0] += CppAD::pow(vars[cte_start + i] , 2);
-                fg[0] += CppAD::pow(vars[epsi_start + i] , 2);
+                fg[0] += 10 * CppAD::pow(vars[cte_start + i] , 2);
+                fg[0] += 10 * CppAD::pow(vars[epsi_start + i] , 2);
                 fg[0] += CppAD::pow(vars[v_start + i] - v_ref,2);
             }
 
             //Actuator cost
             for(int i = 0; i< N-1; ++i){
-                fg[0] +=1* CppAD::pow(vars[delta_start + i] , 2);
-                fg[0] +=1* CppAD::pow(vars[a_start + i] , 2);
+                fg[0] +=1000* CppAD::pow(vars[delta_start + i] , 2);
+                fg[0] +=130* CppAD::pow(vars[a_start + i] , 2);
             }
 
             for(int i = 0; i< N-2; ++i){
-                fg[0] +=500* CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
-                fg[0] +=50*  CppAD::pow(vars[a_start + i + 1] - vars[a_start + i] , 2);
+                fg[0] +=6000* CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
+                fg[0] +=100 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i] , 2);
             }
 
             //Move constraints up by 1

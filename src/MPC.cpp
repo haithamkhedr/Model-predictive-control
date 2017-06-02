@@ -2,12 +2,22 @@
 #include <cppad/cppad.hpp>
 #include <cppad/ipopt/solve.hpp>
 #include "Eigen-3.3/Eigen/Core"
+#include <float.h>
 
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
 size_t N =20;
 double dt = 0.1;
+
+static int x_start = 0;
+static int y_start = x_start + N;
+static int psi_start = y_start + N;
+static int v_start = psi_start + N;
+static int cte_start = v_start + N;
+static int epsi_start = cte_start + N;
+static int delta_start = epsi_start + N;
+static int a_start = delta_start + N -1 ;
 
 // This value assumes the model presented in the classroom is used.
 //
@@ -20,6 +30,7 @@ double dt = 0.1;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
+static const double v_ref = 35;
 
 class FG_eval {
  public:
@@ -33,6 +44,13 @@ class FG_eval {
     // fg a vector of constraints, x is a vector of constraints.
     // NOTE: You'll probably go back and forth between this function and
     // the Solver function below.
+    fg[0] = 0;
+
+    for(int i = 0; i < N; ++i){
+        fg[0] += pow(vars[cte_start + i] , 2);
+        fg[0] += pow(vars[epsi_start + i] , 2);
+        fg[0] += pow(vars[v_start + i] - v_ref,2);
+    }
   }
 };
 
@@ -46,6 +64,12 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   bool ok = true;
   size_t i;
   typedef CPPAD_TESTVECTOR(double) Dvector;
+  double x = state[0];
+  double y = state[1];
+  double psi = state[2];
+  double v = state[3];
+  double cte = state[4];
+  double epsi = state[5];
 
   // TODO: Set the number of model variables (includes both states and inputs).
   // For example: If the state is a 4 element vector, the actuators is a 2
@@ -54,7 +78,7 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   // 4 * 10 + 2 * 9
   size_t n_vars = state.size() * N + 2 * (N-1);
   // TODO: Set the number of constraints
-  size_t n_constraints = 0;
+  size_t n_constraints = N * state.size();
 
   // Initial value of the independent variables.
   // SHOULD BE 0 besides initial state.
@@ -62,11 +86,28 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
   for (int i = 0; i < n_vars; i++) {
     vars[i] = 0;
   }
+  
+  vars[v] = v;
+  vars[cte] = cte;
+  vars[epsi] = epsi;
 
   Dvector vars_lowerbound(n_vars);
   Dvector vars_upperbound(n_vars);
   // TODO: Set lower and upper limits for variables.
+  for(int i = 0; i < delta_start; ++i){
+      vars_lowerbound[i] = DBL_MIN;
+      vars_upperbound[i] = DBL_MAX;
+  }
 
+  for(int i = delta_start; i < a_start; ++i){
+      vars_lowerbound[i] = -0.01745; // -1 degree in radians
+      vars_upperbound[i] = 0.01745;
+  }
+
+  for(int i = a_start; i < n_vars; ++i){
+      vars_lowerbound[i] = -1;
+      vars_upperbound[i] = 1;
+  }
   // Lower and upper limits for the constraints
   // Should be 0 besides initial state.
   Dvector constraints_lowerbound(n_constraints);
@@ -75,6 +116,13 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     constraints_lowerbound[i] = 0;
     constraints_upperbound[i] = 0;
   }
+
+  constraints_lowerbound[v] = v;
+  constraints_lowerbound[cte] = cte;
+  constraints_lowerbound[epsi] = epsi;
+  constraints_upperbound[v] = v;
+  constraints_upperbound[cte] = cte;
+  constraints_upperbound[epsi] = epsi;
 
   // object that computes objective and constraints
   FG_eval fg_eval(coeffs);

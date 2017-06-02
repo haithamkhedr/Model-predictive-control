@@ -21,3 +21,11 @@ where Lf is the distance from the front of the vehicle to its center of gravity.
 
 ## Trajectory horizon and time sampling
 MPC uses the state space model to predict the trajectory of the car. The length of this trajectory `N`(number of points on the trajectory) and the time between predictions `dt` are 2 hyperparameters which were chosen manually to be `N = 20` and `dt = 0.05`. Other values such as 10 and 0.1 were tried but the control of the car was not smooth so I chose to decrese dt to make the trajectory smoother.
+
+## Latency
+Control commands are not executed immediately on a real car due to communication or actuators delays. In this project there is a 100 ms latency to apply the control commands. To overcome this latency, three time steps control commands are averaged to decrease the effect of latency. so the final control command @time t equals the average of control commands @time t,t+1,t+2.
+
+##Results
+The car moves smoothly around the track and as shown in the image below, the predicted trajectory is drawn in green and the reference trajectory is in yellow.
+
+![ScreenShot](./Images/capture.jpeg)

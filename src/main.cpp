@@ -114,7 +114,7 @@ int main() {
             double epsi = -atan(coeffs[1]);
             Eigen::VectorXd state(6);
             state <<0,0,0,v,cte,epsi;
-            //vector<double> params = mpc.Solve(state,coeffs);
+            vector<double> params = mpc.Solve(state,coeffs);
             double steer_value;
             double throttle_value;
 

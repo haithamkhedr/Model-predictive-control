@@ -18,3 +18,6 @@ epsi<sub>t+1</sub> = epsi<sub>t</sub> + V * delta * dt /Lf
 
 
 where Lf is the distance from the front of the vehicle to its center of gravity.
+
+## Trajectory horizon and time sampling
+MPC uses the state space model to predict the trajectory of the car. The length of this trajectory `N`(number of points on the trajectory) and the time between predictions `dt` are 2 hyperparameters which were chosen manually to be `N = 20` and `dt = 0.05`. Other values such as 10 and 0.1 were tried but the control of the car was not smooth so I chose to decrese dt to make the trajectory smoother.

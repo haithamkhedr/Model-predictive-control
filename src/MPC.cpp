@@ -7,8 +7,8 @@
 using CppAD::AD;
 
 // TODO: Set the timestep length and duration
-size_t N =20;
-double dt = 0.1;
+size_t N =10;
+double dt = 0.05;
 
 static int x_start = 0;
 static int y_start = x_start + N;
@@ -32,6 +32,14 @@ static int a_start = delta_start + N -1 ;
 const double Lf = 2.67;
 static const double v_ref = 35;
 
+AD<double> polyeval(Eigen::VectorXd coeffs, AD<double> x) {
+    AD<double> result = 0.0;
+    for (int i = 0; i < coeffs.size(); i++) {
+        result += coeffs[i] * pow(x, i);
+    }
+    return result;
+}
+
 class FG_eval {
     public:
         // Fitted polynomial coefficients
@@ -54,22 +62,22 @@ class FG_eval {
 
             //Actuator cost
             for(int i = 0; i< N-1; ++i){
-                fg[0] += CppAD::pow(vars[delta_start + i] , 2);
-                fg[0] += CppAD::pow(vars[a_start + i] , 2);
+                fg[0] +=1* CppAD::pow(vars[delta_start + i] , 2);
+                fg[0] +=1* CppAD::pow(vars[a_start + i] , 2);
             }
 
             for(int i = 0; i< N-2; ++i){
-                fg[0] += CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
-                fg[0] += CppAD::pow(vars[a_start + i + 1] - vars[a_start + i] , 2);
+                fg[0] +=500* CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
+                fg[0] +=50*  CppAD::pow(vars[a_start + i + 1] - vars[a_start + i] , 2);
             }
 
             //Move constraints up by 1
             fg[x_start + 1] = vars[x_start];
             fg[y_start + 1] = vars[y_start];
             fg[psi_start + 1] = vars[psi_start];
-            fg[v_start + 1] = fg[v_start];
-            fg[cte_start + 1] = fg[cte_start];
-            fg[epsi_start + 1] = fg[epsi_start];
+            fg[v_start + 1] = vars[v_start];
+            fg[cte_start + 1] = vars[cte_start];
+            fg[epsi_start + 1] = vars[epsi_start];
 
             for(int i=0; i < N - 1; ++i){
                 //state t+1
@@ -89,13 +97,16 @@ class FG_eval {
                 //input t
                 AD<double> delta0 = vars[delta_start + i];
                 AD<double> a0 = vars[a_start + i];
+                //polyeval
+                AD<double> f0 = polyeval(coeffs, x0);
+                AD<double> psides0 = CppAD::atan(coeffs[1] + 2.0* coeffs[2] * x0 + 3.0 * coeffs[3] * x0 * x0);
 
                 fg[2 + x_start + i] = x1 - (x0 + v0 * CppAD::cos(psi0) * dt) ;
                 fg[2 + y_start + i] = y1 - (y0 + v0 * CppAD::sin(psi0) * dt) ;
                 fg[2 + psi_start +i] = psi1 - (psi0 + v0 * delta0 * dt / Lf);
                 fg[2 + v_start +i] = v1 - (v0 + a0 * dt);
-                fg[2 + cte_start + i] = cte1 - (cte0 + v0 * CppAD::sin(epsi0) * dt);
-                fg[2 + epsi_start + i] = epsi1 - (epsi0 + v0 * delta0 * dt /Lf);
+                fg[2 + cte_start + i] = cte1 - ((f0-y0) + v0 * CppAD::sin(epsi0) * dt);
+                fg[2 + epsi_start + i] = epsi1 - ((psi0-psides0) + v0 * delta0 * dt /Lf);
 
 
 
@@ -137,21 +148,24 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
         vars[i] = 0;
     }
 
-    vars[v] = v;
-    vars[cte] = cte;
-    vars[epsi] = epsi;
+    vars[x_start] = x;
+    vars[y_start] = y;
+    vars[psi_start] = psi;
+    vars[v_start] = v;
+    vars[cte_start] = cte;
+    vars[epsi_start] = epsi;
 
     Dvector vars_lowerbound(n_vars);
     Dvector vars_upperbound(n_vars);
     // TODO: Set lower and upper limits for variables.
     for(int i = 0; i < delta_start; ++i){
-        vars_lowerbound[i] = DBL_MIN;
-        vars_upperbound[i] = DBL_MAX;
+        vars_lowerbound[i] = -1.0e19;
+        vars_upperbound[i] = 1.0e19;
     }
 
     for(int i = delta_start; i < a_start; ++i){
-        vars_lowerbound[i] = -0.01745; // -1 degree in radians
-        vars_upperbound[i] = 0.01745;
+        vars_lowerbound[i] = -0.436332; // -1 degree in radians
+        vars_upperbound[i] = 0.436332;
     }
 
     for(int i = a_start; i < n_vars; ++i){
@@ -167,12 +181,18 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
         constraints_upperbound[i] = 0;
     }
 
-    constraints_lowerbound[v] = v;
-    constraints_lowerbound[cte] = cte;
-    constraints_lowerbound[epsi] = epsi;
-    constraints_upperbound[v] = v;
-    constraints_upperbound[cte] = cte;
-    constraints_upperbound[epsi] = epsi;
+    constraints_lowerbound[x_start] = x;
+    constraints_lowerbound[y_start] = y;
+    constraints_lowerbound[psi_start] = psi;
+    constraints_lowerbound[v_start] = v;
+    constraints_lowerbound[cte_start] = cte;
+    constraints_lowerbound[epsi_start] = epsi;
+    constraints_upperbound[x_start] = x;
+    constraints_upperbound[y_start] = y;
+    constraints_upperbound[psi_start] = psi;
+    constraints_upperbound[v_start] = v;
+    constraints_upperbound[cte_start] = cte;
+    constraints_upperbound[epsi_start] = epsi;
 
     // object that computes objective and constraints
     FG_eval fg_eval(coeffs);
@@ -212,6 +232,11 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     vector<double> ret;
     ret.push_back(solution.x[delta_start]);
     ret.push_back(solution.x[a_start]);
+    cout<<"Acceleration:" << solution.x[a_start]<<","<<solution.x[a_start+1]<<endl;
+    for(int i=1;i<N;++i){
+        ret.push_back(solution.x[x_start+i]);
+        ret.push_back(solution.x[y_start+i]);
+    }
     // TODO: Return the first actuator values. The variables can be accessed with
     // `solution.x[i]`.
     //

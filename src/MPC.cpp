@@ -30,7 +30,7 @@ static int a_start = delta_start + N -1 ;
 //
 // This is the length from front to CoG that has a similar radius.
 const double Lf = 2.67;
-static const double v_ref = 65;
+static const double v_ref = 120;
 
 AD<double> polyeval(Eigen::VectorXd coeffs, AD<double> x) {
     AD<double> result = 0.0;
@@ -62,12 +62,12 @@ class FG_eval {
 
             //Actuator cost
             for(int i = 0; i< N-1; ++i){
-                fg[0] +=1000* CppAD::pow(vars[delta_start + i] , 2);
+                fg[0] +=50000* CppAD::pow(vars[delta_start + i] , 2);
                 fg[0] +=130* CppAD::pow(vars[a_start + i] , 2);
             }
 
             for(int i = 0; i< N-2; ++i){
-                fg[0] +=6000* CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
+                fg[0] +=90000* CppAD::pow(vars[delta_start + i +1] - vars[delta_start + i] , 2);
                 fg[0] +=100 * CppAD::pow(vars[a_start + i + 1] - vars[a_start + i] , 2);
             }
 
@@ -230,8 +230,10 @@ vector<double> MPC::Solve(Eigen::VectorXd state, Eigen::VectorXd coeffs) {
     auto cost = solution.obj_value;
     std::cout << "Cost " << cost << std::endl;
     vector<double> ret;
-    ret.push_back(solution.x[delta_start]);
-    ret.push_back(solution.x[a_start]);
+    double steering =solution.x[delta_start] + solution.x[delta_start + 1] + solution.x[delta_start + 2];
+    double a = solution.x[a_start] + solution.x[a_start + 1] + solution.x[a_start + 2];
+    ret.push_back(steering/3.0);
+    ret.push_back(a/3.0);
     cout<<"Acceleration:" << solution.x[a_start]<<","<<solution.x[a_start+1]<<endl;
     for(int i=1;i<N;++i){
         ret.push_back(solution.x[x_start+i]);
